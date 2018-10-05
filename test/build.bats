@@ -123,7 +123,7 @@ load common
 
 @test 'ch-build2dir' {
     scope standard
-    # This test unpacks into $ch_tardir so we don't put anything in $ch_imgdir
+    # This test unpacks into $ch_tardir so we don't put anything in $ch_imgdir 
     # at build time. It removes the image on completion.
     need_docker
     tar="${ch_tardir}/alpine36.tar.gz"
@@ -135,6 +135,26 @@ load common
     image_ok "$img"
     # Remove since we don't want it hanging around later.
     rm -Rf --one-file-system "$tar" "$img"
+}
+
+@test 'ch-pull2tar' {
+    scope standard
+    tag='alpine:latest'
+    ch-pull2tar "$tag" "$ch_tardir"
+    [[ $status -eq 0 ]]
+    rm "${ch_tardir}"/"${tag}".tar.gz
+    [[ $stauts -eq 0 ]]
+}
+
+@test 'ch-pull2dir' {
+    scope standard
+    # This test unpacks in $ch_tardir and is removed upon completion.
+    tag='alpine:latest'
+    img="${ch_tardir}/${tag}"
+    ch-pull2dir "$tag" "$ch_tardir"
+    [[ status -eq 0 ]]
+    [[ -d $img ]]
+    rm -Rf --one-file-system "$img"  
 }
 
 @test 'sotest executable works' {

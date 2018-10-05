@@ -3,6 +3,8 @@
 LIBEXEC="$(cd "$(dirname "$0")" && pwd)"
 . ${LIBEXEC}/base.sh
 
+dir_=$(cd "$(dirname "$0")" && pwd)
+
 set -e
 
 usage () {
@@ -11,7 +13,7 @@ Download image via docker pull and flatten it.
 
 Usage:
 
-  $ $(basename $0) DOCKER_IMAGE DIR
+  $ $(basename $0) IMAGE DEST
 
 You must have sufficient privilege (via sudo) to run the Docker commands.
 EOF
@@ -28,8 +30,9 @@ fi
 if [ "$#" -ne 2 ]; then
     usage
 fi
-DOCKER_IMAGE=$1
-DIR=$2
 
-$DOCKER pull $DOCKER_IMAGE
-ch-docker2tar $DOCKER_IMAGE $DIR
+image=$1
+dest=$2
+
+docker_ pull $image
+${dir_}/ch-docker2tar $image $dest
