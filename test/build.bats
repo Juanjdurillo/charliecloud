@@ -139,22 +139,25 @@ load common
 
 @test 'ch-pull2tar' {
     scope standard
+    need_docker
     tag='alpine:latest'
     ch-pull2tar "$tag" "$ch_tardir"
     [[ $status -eq 0 ]]
     rm "${ch_tardir}/${tag}.tar.gz"
-    [[ $stauts -eq 0 ]]
+    [[ ! -e "${ch_tardir}/${tag}.tar.gz" ]]
 }
 
 @test 'ch-pull2dir' {
     scope standard
     # This test unpacks in $ch_tardir and is removed upon completion.
+    need_docker
     tag='alpine:latest'
     img="${ch_tardir}/${tag}"
     ch-pull2dir "$tag" "$ch_tardir"
     [[ status -eq 0 ]]
     [[ -d $img ]]
-    rm -Rf --one-file-system "$img"  
+    rm -Rf --one-file-system "$img"
+    [[ ! -d $img ]]
 }
 
 @test 'sotest executable works' {
