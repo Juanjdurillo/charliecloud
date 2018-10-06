@@ -141,10 +141,12 @@ load common
     scope standard
     need_docker
     tag='alpine:latest'
+    tar="${ch_tardir}/${tag}.tar.gz"
     ch-pull2tar "$tag" "$ch_tardir"
     [[ $status -eq 0 ]]
+    [[ -e $tar ]] 
     rm "${ch_tardir}/${tag}.tar.gz"
-    [[ ! -e "${ch_tardir}/${tag}.tar.gz" ]]
+    [[ ! -e $tar ]]
 }
 
 @test 'ch-pull2dir' {
