@@ -71,7 +71,8 @@ char *join_tag(char *cli_tag);
 int parse_int(char *s, bool extra_ok, char *error_tag);
 static error_t parse_opt(int key, char *arg, struct argp_state *state);
 void privs_verify_invoking();
-
+int set_docker_envs();
+int modifies_path(const char *env);
 
 /** Global variables **/
 
@@ -127,6 +128,7 @@ int main(int argc, char *argv[])
 
    containerize(&args.c);
    fix_environment(&args);
+   set_docker_envs();
    run_user_command(c_argv, args.initial_dir); // should never return
    exit(EXIT_FAILURE);
 }
@@ -341,4 +343,49 @@ void privs_verify_invoking()
    // No UID privilege allowed either.
    T_ (euid != 0);                           // no privilege
    T_ (euid == ruid && euid == suid);        // no setuid or funny business
+}
+
+int modifies_path(const char *env) {
+  char * begin = strstr(env,"PATH");
+  if (begin == NULL)
+    return 0;
+  else if (begin == env)
+    return 1;
+  else 
+     return 0; 
+}
+
+int set_docker_envs() {
+  // Set the environment variables from old docker
+   FILE *fp;
+   char * line = NULL;
+   size_t len = 0;
+   ssize_t read ;
+
+    
+   fp = fopen("/.docker_extra_envs","r");
+   if (fp==NULL) {
+       perror("File containing extra docker env vriables does not exist");
+       return -1;
+   }
+    
+    while ((read = getline(&line, &len, fp))!=1 ){
+       printf("%s\n",line+7);
+       if (!modifies_path(line+7)) {
+           int error_env = putenv(line+7);
+           if (error_env<0) {
+              perror("Could not set environment variable from docker:");
+              perror(line);
+            }   
+       } else {
+         free(line);
+       }
+       
+       line = NULL;
+       len = 0;     
+    }
+    fclose(fp);
+    line = NULL;
+    
+    return 0;
 }
