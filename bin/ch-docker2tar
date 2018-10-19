@@ -24,10 +24,16 @@ fi
 image=$1
 outdir=$2
 tar="$outdir"/$(echo "$image" | sed 's/\//./g').tar.gz
+ONLYTAR="$OUTDIR"/$(echo "$IMAGE" | sed 's/\//./g').tar
 
 cid=$(docker_ create --read-only "$image")
 size=$(docker_ image inspect "$image" --format='{{.Size}}')
+docker_ inspect -f '{{range $index, $value := .Config.Env}}export {{$value}}{{println}}{{end}}' $IMAGE > .docker_extra_envs
+
 #docker_ ps -af "id=$cid"
-docker_ export "$cid" | pv_ -s "$size" | gzip_ -6 > "$tar"
+docker_ export "$cid"  |  pv_ -s "$size" > "$ONLYTAR"
+tar --append --file="$ONLYTAR" ".docker_extra_envs" && cat "$ONLYTAR" | gzip_ -6 > "$TAR"
+rm -r "$ONLYTAR" >/dev/null
+
 docker_ rm "$cid" > /dev/null
 ls -lh "$tar"
