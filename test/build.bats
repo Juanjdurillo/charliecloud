@@ -58,7 +58,7 @@ load common
     for i in "$ch_bin"/ch-*; do
         echo "shellcheck: ${i}"
         [[ ! $(file "$i") = *'shell script'* ]] && continue
-        shellcheck -e SC1090 "$i"
+        shellcheck -e SC1090,SC2154 "$i"
     done
     # libraries for user executables
     for i in "$ch_libexec"/*.sh; do
@@ -135,6 +135,35 @@ load common
     image_ok "$img"
     # Remove since we don't want it hanging around later.
     rm -Rf --one-file-system "$tar" "$img"
+}
+
+@test 'ch-pull2tar' {
+    scope standard
+    # This test pulls an image from Dockerhub and packs it into a tarball at 
+    # $ch_tardir. It removes the tarball upon completetion to keep the number of
+    # alpine36 tarballs to a minimum.
+    need_docker
+    tag='alpine:3.6'
+    tar="${ch_tardir}/${tag}.tar.gz"
+    ch-pull2tar "$tag" "$ch_tardir"
+    [[ $status -eq 0 ]]
+    [[ -e $tar ]] 
+    rm "${ch_tardir}/${tag}.tar.gz"
+    [[ ! -e $tar ]]
+}
+
+@test 'ch-pull2dir' {
+    scope standard
+    # This test unpacks an image tarball pulled from Docker Hub into $ch_tardir
+    # to keep $ch_imgdir clean at build time. It removes the image upon completion. 
+    need_docker
+    tag='alpine:3.6'
+    img="${ch_tardir}/${tag}"
+    ch-pull2dir "$tag" "$ch_tardir"
+    [[ status -eq 0 ]]
+    [[ -d $img ]]
+    rm -Rf --one-file-system "$img"
+    [[ ! -d $img ]]
 }
 
 @test 'sotest executable works' {

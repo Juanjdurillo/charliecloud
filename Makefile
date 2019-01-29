@@ -113,12 +113,12 @@ install: all
 	install -pm 755 -t $(BIN) $$(find bin -type f -executable)
 #       Modify scripts to relate to new libexec location.
 	for scriptfile in $$(find bin -type f -executable -printf "%f\n"); do \
-	    sed -i "s#^LIBEXEC=.*#LIBEXEC=$(LIBEXEC_RUN)#" $(BIN)/$${scriptfile}; \
+	    sed -i "s#^libexec=.*#libexec=$(LIBEXEC_RUN)#" $(BIN)/$${scriptfile}; \
 	done
 #       executable helpers
 	install -d $(LIBEXEC_INST)
 	install -pm 644 -t $(LIBEXEC_INST) bin/base.sh bin/version.sh
-	sed -i "s#^LIBEXEC=.*#LIBEXEC=$(LIBEXEC_RUN)#" $(LIBEXEC_INST)/base.sh
+	sed -i "s#^libexec=.*#libexec=$(LIBEXEC_RUN)#" $(LIBEXEC_INST)/base.sh
 #       man pages if they were built
 	if [ -f man/charliecloud.1 ]; then \
 	    install -d $(INSTALL_PREFIX)/share/man/man1; \
@@ -134,7 +134,8 @@ install: all
 	done
 	chmod 755 $(DOC)/examples/serial/hello/hello.sh \
 	          $(DOC)/examples/syscalls/pivot_root \
-	          $(DOC)/examples/syscalls/userns
+	          $(DOC)/examples/syscalls/userns \
+	          $(DOC)/examples/*/*/*.sh
 	find $(DOC)/examples -name Build -exec chmod 755 {} \;
 #       tests
 	install -d $(TEST) $(TEST)/run
@@ -142,16 +143,16 @@ install: all
 	install -pm 644 -t $(TEST)/run test/run/*.bats
 	install -pm 755 -t $(TEST) test/Build.*
 	install -pm 644 -t $(TEST) test/Dockerfile.* test/Docker_Pull.*
-	install -pm 755 -t $(TEST) test/make-perms-test
+	install -pm 755 -t $(TEST) test/make-auto test/make-perms-test
 	install -d $(TEST)/chtest
 	install -pm 644 -t $(TEST)/chtest test/chtest/*
 	chmod 755 $(TEST)/chtest/{Build,*.py,printns}
 	ln -sf ../../../../bin $(TEST)/bin
 #       shared library tests
 	install -d $(TEST)/sotest $(TEST)/sotest/bin $(TEST)/sotest/lib
-	install -pm 755 -t $(TEST)/sotest test/sotest/files_inferrable.txt \
-                                          test/sotest/libsotest.so.1.0 \
-	                                  test/sotest/sotest \
+	install -pm 755 -t $(TEST)/sotest test/sotest/libsotest.so.1.0 \
+	                                  test/sotest/sotest 
+	install -pm 644 -t $(TEST)/sotest test/sotest/files_inferrable.txt \
 	                                  test/sotest/sotest.c
 	ln -sf ./libsotest.so.1.0 $(TEST)/sotest/libsotest.so
 	ln -sf ./libsotest.so.1.0 $(TEST)/sotest/libsotest.so.1

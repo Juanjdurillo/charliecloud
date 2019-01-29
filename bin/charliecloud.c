@@ -94,7 +94,7 @@ char *cat(char *a, char *b);
 void enter_udss(struct container *c);
 void join_begin(int join_ct, char *join_tag);
 void join_namespace(pid_t pid, char *ns);
-void join_namespaces();
+void join_namespaces(pid_t pid);
 void join_end();
 void log_ids(const char *func, int line);
 bool path_exists(char *path);
@@ -147,13 +147,17 @@ char *cat(char *a, char *b)
 /* Set up new namespaces or join existing namespaces. */
 void containerize(struct container *c)
 {
+   if (c->join_pid) {
+      join_namespaces(c->join_pid);
+      return;
+   }
    if (c->join)
       join_begin(c->join_ct, c->join_tag);
    if (!c->join || join.winner_p) {
       setup_namespaces(c);
       enter_udss(c);
    } else
-      join_namespaces();
+      join_namespaces(join.shared->winner_pid);
    if (c->join)
       join_end();
 
@@ -189,22 +193,22 @@ void enter_udss(struct container *c)
    }
    // Container /home.
    if (!c->private_home) {
-      char *oldhome, *newhome;
+      char *newhome;
       // Mount tmpfs on guest /home because guest root is read-only
       tmpfs_mount("/home", c->newroot, "size=4m");
       // Bind-mount user's home directory at /home/$USER. The main use case is
       // dotfiles.
-      oldhome = getenv("HOME");
-      Tf (oldhome != NULL, "cannot find home directory: $HOME not set");
+      Tf (c->old_home != NULL, "cannot find home directory: is $HOME set?");
       newhome = cat("/home/", getenv("USER"));
       Z_ (mkdir(cat(c->newroot, newhome), 0755));
-      bind_mount(oldhome, newhome, c->newroot, BD_REQUIRED, 0);
+      bind_mount(c->old_home, newhome, c->newroot, BD_REQUIRED, 0);
    }
    // Bind-mount /usr/bin/ch-ssh if it exists.
    if (path_exists(cat(c->newroot, "/usr/bin/ch-ssh"))) {
       char chrun_file[PATH_CHARS];
-      T_ (-1 != readlink("/proc/self/exe", chrun_file, PATH_CHARS));
-      chrun_file[PATH_CHARS-1] = 0;  // guarantee string termination
+      int len = readlink("/proc/self/exe", chrun_file, PATH_CHARS);
+      T_ (len >= 0);
+      chrun_file[ len<PATH_CHARS ? len : PATH_CHARS-1 ] = 0; // terminate; #315
       bind_mount(cat(dirname(chrun_file), "/ch-ssh"), "/usr/bin/ch-ssh",
                  c->newroot, BD_REQUIRED, 0);
    }
@@ -312,7 +316,7 @@ void join_namespace(pid_t pid, char *ns)
    fd = open(path, O_RDONLY);
    if (fd == -1) {
       if (errno == ENOENT) {
-         Te (0, "join: %s not found; is winner still running?", path);
+         Te (0, "join: no PID %d: %s not found", pid, path);
       } else {
          Tf (0, "join: can't open %s", path);
       }
@@ -321,10 +325,11 @@ void join_namespace(pid_t pid, char *ns)
 }
 
 /* Join the existing namespaces created by the join winner. */
-void join_namespaces()
+void join_namespaces(pid_t pid)
 {
-   join_namespace(join.shared->winner_pid, "user");
-   join_namespace(join.shared->winner_pid, "mnt");
+   INFO("joining namespaces of pid %d", pid);
+   join_namespace(pid, "user");
+   join_namespace(pid, "mnt");
 }
 
 /* If verbose, print uids and gids on stderr prefixed with where. */

@@ -42,11 +42,16 @@ Systems used for running images need:
 * POSIX shell and utilities
 
 Some distributions need configuration changes to enable user namespaces. For
-example, Debian Stretch needs sysctl
-:code:`kernel.unprivileged_userns_clone=1`, and RHEL and CentOS 7.4 need both
-a `kernel command line option and a sysctl
-<https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html-single/getting_started_with_containers/#user_namespaces_options>`_
-(that put you into "technology preview").
+example:
+
+* Debian Stretch `needs sysctl <https://superuser.com/a/1122977>`_
+  :code:`kernel.unprivileged_userns_clone=1`.
+
+* RHEL/CentOS 7.4 and 7.5 need both a `kernel command line option and a sysctl <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html-single/getting_started_with_containers/#user_namespaces_options>`_.
+  *Important note:* Docker does not work with user namespaces, so skip step 4
+  of the Red Hat instructions, i.e., don't add :code:`--userns-remap` to the
+  Docker configuration (see `issue #97
+  <https://github.com/hpc/charliecloud/issues/97>`_).
 
 Build time
 ----------
@@ -74,12 +79,6 @@ mode independently), you also need:
 * Python 2.6+
 * `Bats <https://github.com/sstephenson/bats>`_ 0.4.0
 * wget
-
-.. With respect to curl vs. wget, both will work fine for our purposes
-   (download a URL). According to Debian's popularity contest, 99.88% of
-   reporting systems have wget installed, vs. about 44% for curl. On the other
-   hand, curl is in the minimal install of CentOS 7 while wget is not. For now
-   I just picked wget because I liked it better.
 
 Note that without Docker on the build system, some of the test suite will be
 skipped.
@@ -202,7 +201,7 @@ To build, simply::
 
   $ make
 
-To build the documentation, see :code:`doc-src/README`.
+To build the documentation, see :ref:`the contributor's guide <doc-build>`.
 
 Install (optional)
 ------------------

@@ -2,13 +2,12 @@ load ../common
 
 fromhost_clean () {
     [[ $1 ]]
-    for file in /{lib,mnt,usr/bin}/sotest \
-                /{lib,mnt,usr/lib,usr/local/lib}/libsotest.so.1{.0,} \
-                /usr/local/cuda-9.1/targets/x86_64-linux/lib/libsotest.so.1{.0,} \
-                /mnt/sotest.c \
-                /etc/ld.so.cache ; do
-        rm -f "${1}${file}"
-    done
+    rm -f "$1"/{lib,mnt,usr/bin}/sotest \
+          "$1"/{lib,mnt,usr/lib,usr/local/lib}/libsotest.so.1{.0,} \
+          "$1"/mnt/sotest.c \
+          "$1"/etc/ld.so.cache \
+          "$1"/usr/local/lib/libcuda* \
+          "$1"/usr/local/lib/libnvidia*
     ch-run -w "$1" -- /sbin/ldconfig  # restore default cache
     fromhost_clean_p "$1"
 }
@@ -262,6 +261,19 @@ fromhost_ls () {
     [[ $status -eq 1 ]]
     [[ $output = *'duplicate image'* ]]
     fromhost_clean_p "$img"
+
+    # ldconfig gives no shared library path (#324)
+    #
+    # (I don't think this is the best way to get ldconfig to fail, but I
+    # couldn't come up with anything better. E.g., bad ld.so.conf or broken
+    # .so's seem to produce only warnings.)
+    mv "${img}/sbin/ldconfig" "${img}/sbin/ldconfig.foo"
+    run ch-fromhost --lib-path "$img"
+    mv "${img}/sbin/ldconfig.foo" "${img}/sbin/ldconfig"
+    echo "$output"
+    [[ $status -eq 1 ]]
+    [[ $output = *'empty path from ldconfig'* ]]
+    fromhost_clean_p "$img"
 }
 
 @test 'ch-fromhost --cray-mpi not on a Cray' {
@@ -334,8 +346,8 @@ fromhost_ls () {
     fromhost_clean "$img"
     run ch-run "$img" -- $sample
     echo "$output"
-    [[ $status -eq 127 ]]
-    [[ $output =~ 'matrixMulCUBLAS: error while loading shared libraries' ]]
+    [[ $status -eq 1 ]]
+    [[ $output = *'CUDA error at'* ]]
     # should succeed with it
     fromhost_clean_p "$img"
     ch-fromhost --nvidia "$img"

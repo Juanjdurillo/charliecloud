@@ -236,6 +236,8 @@ of the default 1001:1001), i.e. :code:`--gid=5`. Then, step 4 succeeds because
 the call is mapped to :code:`chown("/dev/pts/0", 1000, 1001)` and MATLAB is
 happy.
 
+.. _faq_docker2tar-size:
+
 :code:`ch-docker2tar` gives incorrect image sizes
 -------------------------------------------------
 
@@ -271,6 +273,42 @@ We've also seen cases where the Docker-reported size is an *under*\ estimate::
 We think that this is because Docker is computing size based on the size of
 the layers rather than the unpacked image. We do not currently have a fix; see
 `issue #165 <https://github.com/hpc/charliecloud/issues/165>`_.
+
+My second-level directory :code:`dev` is empty
+----------------------------------------------
+
+Some image tarballs, such as official Ubuntu Docker images, put device files
+in :code:`/dev`. These files prevent unpacking the tarball, because
+unprivileged users cannot create device files. Further, these files are not
+needed because :code:`ch-run` overmounts :code:`/dev` anyway.
+
+We cannot reliably prevent device files from being included in the tar,
+because often that is outside our control, e.g. :code:`docker export` produces
+a tarball. Thus, we must exclude them at unpacking time.
+
+An additional complication is that :code:`ch-tar2dir` can handle tarballs both
+with a single top-level directory and without, i.e. “tarbombs”. For example,
+best practice use of :code:`tar` on the command line produces the former,
+while :code:`docker export` (perhaps via :code:`ch-docker2tar`) produces a
+tarbomb.
+
+Thus, :code:`ch-tar2dir` uses :code:`tar --exclude` to exclude from unpacking
+everything under :code:`./dev` and :code:`*/dev`, i.e., directory :code:`dev`
+appearing at either the first or second level are forced to be empty.
+
+This yields false positives if you have a tarbomb image with a directory
+:code:`dev` at the second level containing stuff you care about. Hopefully
+this is rare, but please let us know if it is your use case.
+
+My password that contains digits doesn't work in VirtualBox console
+-------------------------------------------------------------------
+
+VirtualBox has confusing Num Lock behavior. Thus, you may be typing arrows,
+page up/down, etc. instead of digits, without noticing because console
+password fields give no feedback, not even whether a character has been typed.
+
+Try using the number row instead, toggling Num Lock key, or SSHing into the
+virtual machine.
 
 
 How do I ...
@@ -479,65 +517,3 @@ should pop an xterm.
 
 If your X11 application doesn’t work, please file an issue so we can
 figure out why.
-
-How do I create a tarball compatible with Charliecloud?
--------------------------------------------------------------
-
-In contrast with best practices for source code, Charliecloud expects an image
-tarball to have either no top-level directory or a top-level directory that is
-exactly :code:`.` (dot). This is inherited from the format of :code:`docker
-export` tarballs. If you’re creating tarballs by other means, you may run into
-this issue.
-
-For example, let's try to re-pack the :code:`chtest` image directory. This
-fails with a rather opaque error message.
-
-::
-
-  $ cd $CH_TEST_IMGDIR
-  $ tar czf chtest2.tar.gz chtest
-  $ tar tf chtest2.tar.gz | head
-  chtest/
-  chtest/var/
-  chtest/var/run/
-  chtest/var/empty/
-  chtest/var/spool/
-  chtest/var/spool/cron/
-  chtest/var/spool/cron/crontabs
-  chtest/var/opt/
-  chtest/var/local/
-  chtest/var/log/
-  $ ch-tar2dir chtest2.tar.gz .
-  $ ls chtest2
-  chtest  dev  mnt  WEIRD_AL_YANKOVIC
-  $ ch-run ./chtest2 -- echo hello
-  ch-run[28780]: can't bind /etc/passwd to /var/tmp/images/chtest2/etc/passwd: No such file or directory (charliecloud.c:132 2)
-
-The workaround is to create the tarball from within the image directory. (If
-you do this immediately after the above, you'll need to remove the
-:code:`chtest2` directory first.)
-
-::
-
-  $ ch $CH_TEST_IMGDIR/chtest
-  $ tar czf ../chtest2.tar.gz .
-  $ cd ..
-  $ tar tf chtest2.tar.gz | head
-  ./
-  ./var/
-  ./var/run/
-  ./var/empty/
-  ./var/spool/
-  ./var/spool/cron/
-  ./var/spool/cron/crontabs
-  ./var/opt/
-  ./var/local/
-  ./var/log/
-  $ ch-tar2dir chtest2.tar.gz .
-  $ ls chtest2
-  bin  etc   lib    mnt   root  sbin  sys   tmp  var
-  dev  home  media  proc  run   srv   test  usr  WEIRD_AL_YANKOVIC
-  $ ch-run ./chtest2 -- echo hello
-  hello
-
-We are working on usability enhancements for this process.
